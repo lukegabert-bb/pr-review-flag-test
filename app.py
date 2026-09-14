@@ -39,3 +39,4 @@ def create_user(username, email):
     )
     conn.commit()
     conn.close()
+
