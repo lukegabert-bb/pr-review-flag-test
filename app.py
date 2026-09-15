@@ -1,21 +1,25 @@
 import sqlite3
 import sys
+from contextlib import contextmanager
 
 DB_PATH = "users.db"
 
 
-def get_connection():
-    return sqlite3.connect(DB_PATH)
+@contextmanager
+def _connection():
+    """Shared connection lifecycle: open, yield, always close."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def get_user_by_username(username):
-    conn = get_connection()
-    try:
+    with _connection() as conn:
         cur = conn.cursor()
         cur.execute("SELECT id, username, email FROM users WHERE username = ?", (username,))
         return cur.fetchone()
-    finally:
-        conn.close()
 
 
 def _escape_like(value):
@@ -25,8 +29,7 @@ def _escape_like(value):
 
 def search_users(query):
     """Search users by a free-text query against username or email."""
-    conn = get_connection()
-    try:
+    with _connection() as conn:
         cur = conn.cursor()
         like = "%" + _escape_like(query) + "%"
         cur.execute(
@@ -34,21 +37,16 @@ def search_users(query):
             (like, like),
         )
         return cur.fetchall()
-    finally:
-        conn.close()
 
 
 def create_user(username, email):
-    conn = get_connection()
-    try:
+    with _connection() as conn:
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO users (username, email) VALUES (?, ?)",
             (username, email),
         )
         conn.commit()
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":
